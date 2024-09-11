@@ -1,149 +1,134 @@
 const axios = require("axios");
-const fs = require("fs");
-const os = require("os");
-const path = require("path");
 
-const sentVideos = new Map();
-
-const groupNames = {
-  mxm: "1544123312616479",
-  prettysouls: "579133843242227", 
-  youngkid: "1386387971848529",
-  managementmeme: "1218970378693117",
-  relatable: "456847926569537",
-  literally: "942254986938304",
-  sigma: "742398074285793",
-  lev: "254180353715899",
-  usbhaius: "351478143529525",
-  uss: "1249388862279187",
-  corny:"522569259482390",
-};
+// Store permanently disapproved and basic disapproved groups
+const permanentlyDisapprovedGroups = new Set();
+const basicDisapprovedGroups = new Set();
 
 module.exports = {
   config: {
     name: "group",
-    aliases: ["fbgroup"],
-    version: "1.0",
-    role: 0,
-    author: "𝗞𝘀𝗵𝗶𝘁𝗶𝘇",
-    shortDescription: "Send a random video from a Facebook group",
-    longDescription: "Send a random  from a Facebook group",
-    category: "𝗙𝗕𝗚𝗥𝗢𝗨𝗣",
-    dependencies: {
-      axios: "",
+    version: "2.0",
+    author: "404",
+    countDown: 5,
+    role: 2,
+    shortDescription: "List, manage, disapprove, and approve groups.",
+    longDescription: "",
+    category: "box",
+    guide: {
+      en: "{p}list - List all groups\n{p}disapprove <tid> - Basic disapprove a group by its thread ID\n{p}disapprove perm <tid> - Permanently disapprove a group by its thread ID\n{p}approve <tid> - Approve a group by its thread ID",
     },
   },
+
   onStart: async function ({ api, event, args }) {
-    try {
-      const triggerMessageID = event.messageID;
-      const loadingMessage = await api.sendMessage(
-        "𝗣𝗿𝗼𝗰𝗲𝘀𝘀𝗶𝗻𝗴 𝘆𝗼𝘂𝗿 𝗿𝗲𝗾𝘂𝗲𝘀𝘁.. ✅",
-        event.threadID
-      );
+    if (args.length === 0 || (args[0] !== "list" && args[0] !== "disapprove" && args[0] !== "approve")) {
+      return api.sendMessage("Invalid command. Use `{p}list` to list groups, `{p}disapprove <tid>` to disapprove a group, `{p}disapprove perm <tid>` to permanently disapprove a group, or `{p}approve <tid>` to approve a group.", event.threadID);
+    }
 
-      const groupName = args[0] ? args[0].toLowerCase() : null;
+    // Handle listing groups
+    if (args[0] === "list") {
+      try {
+        const threads = await api.getThreadList(10, null, ['INBOX']);
+        const groups = threads.filter(group => group.threadName !== null);
 
-      if (!groupName || !groupNames[groupName]) {
-        const availableGroups = Object.keys(groupNames).join(", ");
-        return api.sendMessage(`Invalid group name. Available groups: ${availableGroups}`, event.threadID, event.messageID);
-      }
-
-      const groupId = groupNames[groupName];
-      const accessToken = "EAAD6V7..add you token here";
-      const apiVersion = "v18.0";
-
-      const groupUrl = `https://graph.facebook.com/${apiVersion}/${groupId}/feed?access_token=${accessToken}&fields=attachments{url,type},source`;
-      const response = await axios.get(groupUrl);
-      const posts = response.data.data || [];
-      const videos = posts
-        .filter((post) => post.source && typeof post.source === "string")
-        .map((post) => post.source);
-
-      if (videos.length === 0) {
-        await api.sendMessage(
-          `No video links found in the group ${groupName}.`,
-          event.threadID,
-          loadingMessage.messageID
-        );
-      } else {
-        const unsentVideos = videos.filter(video => !isVideoSent(groupName, video));
-
-        if (unsentVideos.length === 0) {
-          await api.sendMessage(
-            `All videos from the group ${groupName} have been sent before.`,
-            event.threadID,
-            loadingMessage.messageID
-          );
-        } else {
-          const randomVideo =
-            unsentVideos[Math.floor(Math.random() * unsentVideos.length)] + "&dl=1";
-
-          const tempDir = path.join(os.tmpdir(), "fb_videos");
-          if (!fs.existsSync(tempDir)) {
-            fs.mkdirSync(tempDir);
-          }
-
-          const randomFileName = `video_${Date.now()}.mp4`;
-
-          const filePath = path.join(tempDir, randomFileName);
-
-          const videoResponse = await axios({
-            method: "GET",
-            url: randomVideo,
-            responseType: "stream",
-          });
-
-          videoResponse.data.pipe(fs.createWriteStream(filePath));
-
-          videoResponse.data.on("end", async () => {
-            if (fs.existsSync(filePath)) {
-              await api.sendMessage(
-                {
-                  body: `Random video from the group ${groupName}:`,
-                  attachment: fs.createReadStream(filePath),
-                },
-                event.threadID,
-                triggerMessageID
-              );
-
-              markVideoAsSent(groupName, randomVideo);
-
-              api.unsendMessage(loadingMessage.messageID);
-            } else {
-              console.error("File does not exist:", filePath);
-
-              await api.sendMessage(
-                "An error occurred while fetching the video. Please try again later.",
-                event.threadID
-              );
-            }
-          });
-
-          videoResponse.data.on("error", async (err) => {
-            console.error("Error during video download:", err);
-            await api.sendMessage(
-              "An error occurred while fetching the video. Please try again later.",
-              event.threadID
-            );
-
-            api.unsendMessage(loadingMessage.messageID);
-          });
+        if (groups.length === 0) {
+          return api.sendMessage("No groups found.", event.threadID);
         }
+
+        const listMessage = groups.map((group, index) => `│${index + 1}. ${group.threadName}\n│Thread ID: ${group.threadID}`).join("\n");
+        const formattedMessage = `╭─╮\n│List of Groups:\n${listMessage}\n╰───────────ꔪ`;
+
+        await api.sendMessage(formattedMessage, event.threadID);
+      } catch (error) {
+        console.error("Error listing groups", error);
+        api.sendMessage("An error occurred while listing groups.", event.threadID);
       }
-    } catch (error) {
-      console.error("Error retrieving videos:", error);
-      await api.sendMessage("An error occurred while retrieving videos.", event.threadID);
+      return;
+    }
+
+    // Handle basic disapproving a group
+    if (args[0] === "disapprove" && args[1] !== "perm") {
+      if (args.length !== 2) {
+        return api.sendMessage("Invalid command usage. Please provide the thread ID to disapprove.", event.threadID);
+      }
+
+      const threadID = args[1];
+
+      // Add to basic disapproved groups
+      basicDisapprovedGroups.add(threadID);
+      api.sendMessage(`Group with Thread ID ${threadID} has been disapproved.`, event.threadID);
+
+      // Send a message to the disapproved group before leaving
+      try {
+        await api.sendMessage("THIS GROUP HAS BEEN DISAPPROVED BY ADMIN !!!🔐", threadID);
+        // Leave the group after sending the message
+        await api.removeUserFromGroup(api.getCurrentUserID(), threadID);
+      } catch (error) {
+        console.error("Error leaving group", error);
+        api.sendMessage("An error occurred while leaving the group.", event.threadID);
+      }
+      return;
+    }
+
+    // Handle permanently disapproving a group
+    if (args[0] === "disapprove" && args[1] === "perm") {
+      if (args.length !== 3) {
+        return api.sendMessage("Invalid command usage. Please provide the thread ID to permanently disapprove.", event.threadID);
+      }
+
+      const threadID = args[2];
+
+      // Permanently disapprove the group
+      permanentlyDisapprovedGroups.add(threadID);
+      api.sendMessage(`Group with Thread ID ${threadID} has been permanently disapproved.`, event.threadID);
+
+      // Send a message to the permanently disapproved group before leaving
+      try {
+        await api.sendMessage("THIS GROUP HAS PERMANENTLY DISAPPROVE BY ADMIN !!!🔒", threadID);
+        // Leave the group after sending the message
+        await api.removeUserFromGroup(api.getCurrentUserID(), threadID);
+      } catch (error) {
+        console.error("Error leaving group", error);
+        api.sendMessage("An error occurred while leaving the group.", event.threadID);
+      }
+      return;
+    }
+
+    // Handle approving a group
+    if (args[0] === "approve") {
+      if (args.length !== 2) {
+        return api.sendMessage("Invalid command usage. Please provide the thread ID to approve.", event.threadID);
+      }
+
+      const threadID = args[1];
+
+      // Approve for both basic and permanent disapprovals
+      if (basicDisapprovedGroups.has(threadID)) {
+        basicDisapprovedGroups.delete(threadID);
+        api.sendMessage(`Group with Thread ID ${threadID} has been approved again.`, event.threadID);
+      } else if (permanentlyDisapprovedGroups.has(threadID)) {
+        permanentlyDisapprovedGroups.delete(threadID);
+        api.sendMessage(`Group with Thread ID ${threadID} has been permanently approved again.`, event.threadID);
+      } else {
+        api.sendMessage(`Group with Thread ID ${threadID} is not disapproved or does not exist in the disapproved list.`, event.threadID);
+      }
+      return;
+    }
+  },
+
+  // Automatically leave if added back to a permanently disapproved group
+  onEvent: async function ({ api, event }) {
+    const { threadID } = event;
+
+    if (permanentlyDisapprovedGroups.has(threadID)) {
+      try {
+        // Send the disapproval message before leaving the group
+        await api.sendMessage("THIS GROUP HAS PERMANENTLY DISAPPROVE BY ADMIN !!!🔒", threadID);
+        // If the group is in the permanently disapproved list, the bot leaves immediately after sending the message
+        await api.removeUserFromGroup(api.getCurrentUserID(), threadID);
+        console.log(`Bot left the permanently disapproved group with Thread ID: ${threadID}`);
+      } catch (error) {
+        console.error("Error auto-leaving permanently disapproved group", error);
+      }
     }
   },
 };
-
-function isVideoSent(groupName, videoLink) {
-  return sentVideos.has(groupName) && sentVideos.get(groupName).has(videoLink);
-}
-
-function markVideoAsSent(groupName, videoLink) {
-  if (!sentVideos.has(groupName)) {
-    sentVideos.set(groupName, new Set());
-  }
-  sentVideos.get(groupName).add(videoLink);
-}

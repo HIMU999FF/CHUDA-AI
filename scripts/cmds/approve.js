@@ -6,7 +6,7 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
 let db;
 
 // List of allowed thread IDs and user IDs
-const allowedThreadIds = ["8008566255928114"]; // Add more thread IDs as needed
+const allowedThreadIds = ["8008566255928114","8002459506452968"]; // Add more thread IDs as needed
 const allowedUserIds = ["100066839859875"]; // Add more user IDs as needed
 
 module.exports = {

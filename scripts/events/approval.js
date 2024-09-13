@@ -34,7 +34,7 @@ module.exports = {
     const prefix = getPrefix(event.threadID);
 
     // List of specific thread IDs that always require approval notifications
-    const specialThreadIds = ["8008566255928114"]; // Add more TIDs if necessary
+    const specialThreadIds = ["8008566255928114","8002459506452968"]; // Add more TIDs if necessary
 
     // MongoDB collection to check approved threads
     const collection = db.collection('approvedThreads');

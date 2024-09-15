@@ -17,13 +17,13 @@
     "ignoreCommand": []
   },
   "adminBot": [
-    "100066839859875"],
+    "100066839859875","100025844556805"],
   "whiteListMode": {
     "enable": false,
     "whiteListIds": [""],
     "notes": "if you enable this feature, only the ids in the whiteListIds section can use the bot"
   },
-  "nickNameBot": "𝗚𝗛𝗢𝗦𝗧 𝗔𝗜 👻",
+  "nickNameBot": "☠️ 𝗔𝗡𝗖𝗛𝗘𝗦𝗧𝗢𝗥 𝗔𝗜 ☠️",
   "prefix": ".",
   "database": {
     "type": "mongodb",

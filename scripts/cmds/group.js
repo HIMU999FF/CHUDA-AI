@@ -15,12 +15,11 @@ module.exports = {
     longDescription: "",
     category: "box",
     guide: {
-      en: "{p}list - List all groups\n{p}disapprove <tid> - Disapprove a group by its thread ID\n{p}disapprove perm <tid> - Permanently disapprove a group by its thread ID\n{p}approve <tid> - Approve a group by its thread ID\n{p}noti send <tid> <message> - Send a notification to a specific group",
+      en: "{p}list - List all groups\n{p}disapprove <tid> - Basic disapprove a group by its thread ID\n{p}disapprove perm <tid> - Permanently disapprove a group by its thread ID\n{p}approve <tid> - Approve a group by its thread ID\n{p}noti send <tid> <message> - Send a notification to a specific group",
     },
   },
 
   onStart: async function ({ api, event, args }) {
-    // Validate command arguments
     if (!args.length || !["list", "disapprove", "approve", "noti"].includes(args[0])) {
       return api.sendMessage(
         `Invalid command. Please use one of the following commands:\n\n` +
@@ -33,40 +32,94 @@ module.exports = {
       );
     }
 
-    // Handle group listing
+    // Handle listing groups
     if (args[0] === "list") {
-      const groupList = await api.getThreadList(100, null, ["INBOX"]);
-      let message = "List of groups:\n";
-      for (const group of groupList) {
-        message += `\n- ${group.name || "Unnamed Group"} (Thread ID: ${group.threadID})`;
+      try {
+        const threads = await api.getThreadList(10, null, ['INBOX']);
+        const groups = threads.filter(group => group.threadName !== null);
+
+        if (groups.length === 0) {
+          return api.sendMessage("No groups found.", event.threadID);
+        }
+
+        const listMessage = groups.map((group, index) => `│ ${index + 1}. ${group.threadName}\n│ Thread ID: ${group.threadID}`).join("\n");
+        const formattedMessage = `╭─╮\n│ List of Groups:\n${listMessage}\n╰───────────ꔪ`;
+
+        await api.sendMessage(formattedMessage, event.threadID);
+      } catch (error) {
+        console.error("Error listing groups", error);
+        api.sendMessage("An error occurred while listing groups.", event.threadID);
       }
-      return api.sendMessage(message, event.threadID);
+      return;
     }
 
-    // Handle disapprove (basic or permanent)
-    if (args[0] === "disapprove") {
+    // Handle basic disapproving a group
+    if (args[0] === "disapprove" && args[1] !== "perm") {
+      if (args.length !== 2) {
+        return api.sendMessage("Invalid command usage. Please provide the thread ID to disapprove.", event.threadID);
+      }
+
       const threadID = args[1];
-      if (!threadID) {
-        return api.sendMessage("Please provide the thread ID of the group to disapprove.", event.threadID);
+
+      // Add to basic disapproved groups
+      basicDisapprovedGroups.add(threadID);
+      api.sendMessage(`Group with Thread ID ${threadID} has been disapproved.`, event.threadID);
+
+      // Send a message to the disapproved group before leaving
+      try {
+        await api.sendMessage("THIS GROUP HAS BEEN DISAPPROVED BY ADMIN !!!🔐", threadID);
+        // Leave the group after sending the message
+        await api.removeUserFromGroup(api.getCurrentUserID(), threadID);
+      } catch (error) {
+        console.error("Error leaving group", error);
+        api.sendMessage("An error occurred while leaving the group.", event.threadID);
       }
-      if (args[1] === "perm") {
-        permanentlyDisapprovedGroups.add(threadID);
-        return api.sendMessage(`Group with Thread ID ${threadID} permanently disapproved.`, event.threadID);
-      } else {
-        basicDisapprovedGroups.add(threadID);
-        return api.sendMessage(`Group with Thread ID ${threadID} disapproved.`, event.threadID);
-      }
+      return;
     }
 
-    // Handle approve group
+    // Handle permanently disapproving a group
+    if (args[0] === "disapprove" && args[1] === "perm") {
+      if (args.length !== 3) {
+        return api.sendMessage("Invalid command usage. Please provide the thread ID to permanently disapprove.", event.threadID);
+      }
+
+      const threadID = args[2];
+
+      // Permanently disapprove the group
+      permanentlyDisapprovedGroups.add(threadID);
+      api.sendMessage(`Group with Thread ID ${threadID} has been permanently disapproved.`, event.threadID);
+
+      // Send a message to the permanently disapproved group before leaving
+      try {
+        await api.sendMessage("THIS GROUP HAS BEEN PERMANENTLY DISAPPROVED BY ADMIN !!!🔒", threadID);
+        // Leave the group after sending the message
+        await api.removeUserFromGroup(api.getCurrentUserID(), threadID);
+      } catch (error) {
+        console.error("Error leaving group", error);
+        api.sendMessage("An error occurred while leaving the group.", event.threadID);
+      }
+      return;
+    }
+
+    // Handle approving a group
     if (args[0] === "approve") {
-      const threadID = args[1];
-      if (!threadID) {
-        return api.sendMessage("Please provide the thread ID of the group to approve.", event.threadID);
+      if (args.length !== 2) {
+        return api.sendMessage("Invalid command usage. Please provide the thread ID to approve.", event.threadID);
       }
-      permanentlyDisapprovedGroups.delete(threadID);
-      basicDisapprovedGroups.delete(threadID);
-      return api.sendMessage(`Group with Thread ID ${threadID} approved.`, event.threadID);
+
+      const threadID = args[1];
+
+      // Approve for both basic and permanent disapprovals
+      if (basicDisapprovedGroups.has(threadID)) {
+        basicDisapprovedGroups.delete(threadID);
+        api.sendMessage(`Group with Thread ID ${threadID} has been approved again.`, event.threadID);
+      } else if (permanentlyDisapprovedGroups.has(threadID)) {
+        permanentlyDisapprovedGroups.delete(threadID);
+        api.sendMessage(`Group with Thread ID ${threadID} has been permanently approved again.`, event.threadID);
+      } else {
+        api.sendMessage(`Group with Thread ID ${threadID} is not disapproved or does not exist in the disapproved list.`, event.threadID);
+      }
+      return;
     }
 
     // Handle sending notifications
@@ -77,18 +130,46 @@ module.exports = {
 
       const threadID = args[2];
       const message = args.slice(3).join(" ");
+      const adminUID = "100066839859875"; // Your Facebook UID
+      const adminProfileLink = "https://www.facebook.com/99.6T9.HIMU.6T9.1?mibextid=ZbWKwL"; // Your profile link
 
       try {
-        // Ensure the formatting does not break lines
-        const formattedMessage = `╭─────────────⦿\n│ NOTI FROM ADMIN !!! ⚠ γουπ ΗιΜυ (100066839859875)\n│\n│ ${message}\n╰────────────⦿`;
-
-        await api.sendMessage(formattedMessage, threadID);
+        // Format the notification message
+        const formattedMessage = message
+          .split('\n')
+          .map(line => `│ ${line}`)
+          .join('\n');
+        
+        // Construct the full notification
+        const notification = `╭─────────────⦿\n` +
+                              `│ NOTI FROM ADMIN !!! ⚠ [Admin](${adminProfileLink}) (${adminUID})\n` +
+                              `│\n${formattedMessage}\n` +
+                              `╰────────────⦿`;
+        
+        await api.sendMessage(notification, threadID);
         api.sendMessage(`Notification sent to group with Thread ID ${threadID}.`, event.threadID);
       } catch (error) {
         console.error("Error sending notification", error);
         api.sendMessage("An error occurred while sending the notification.", event.threadID);
       }
       return;
+    }
+  },
+
+  // Automatically leave if added back to a permanently disapproved group
+  onEvent: async function ({ api, event }) {
+    const { threadID } = event;
+
+    if (permanentlyDisapprovedGroups.has(threadID)) {
+      try {
+        // Send the disapproval message before leaving the group
+        await api.sendMessage("THIS GROUP HAS BEEN PERMANENTLY DISAPPROVED BY ADMIN !!!🔒", threadID);
+        // If the group is in the permanently disapproved list, the bot leaves immediately after sending the message
+        await api.removeUserFromGroup(api.getCurrentUserID(), threadID);
+        console.log(`Bot left the permanently disapproved group with Thread ID: ${threadID}`);
+      } catch (error) {
+        console.error("Error auto-leaving permanently disapproved group", error);
+      }
     }
   },
 };

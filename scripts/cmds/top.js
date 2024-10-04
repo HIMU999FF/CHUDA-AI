@@ -1,7 +1,7 @@
-module.exports = {
+ module.exports = {
   config: {
     name: "top",
-    version: "1.2",
+    version: "1.3",
     author: "Himu-",
     role: 0, // Role 0 means everyone can use it
     shortDescription: "Top users by balance",
@@ -15,20 +15,10 @@ module.exports = {
       // Fetch all users' data
       const allUsers = await usersData.getAll();
       
-      // Debugging: Log the raw data retrieved
-      console.log("Raw user data:", allUsers);
-
       // Check if data retrieval is successful and valid
       if (!Array.isArray(allUsers)) {
         throw new Error("Data retrieved is not an array.");
       }
-
-      // Ensure each user object contains the expected properties
-      allUsers.forEach(user => {
-        if (typeof user.money !== 'number' || !user.name) {
-          throw new Error(`Invalid user data: ${JSON.stringify(user)}`);
-        }
-      });
 
       // Sort users by balance
       const sortedUsers = allUsers
@@ -41,10 +31,9 @@ module.exports = {
 
       if (option === 'all') {
         // Display all users
-        messageText = `🏆 All Users by Balance 🏆\n\n${sortedUsers.map((user, index) => {
-          const rankIcon = getRankIcon(index + 1);
-          return `${rankIcon} ${index + 1}. ${user.name}: $${user.money.toLocaleString()}`;
-        }).join('\n')}\n\n💰 Keep earning to climb the leaderboard! 💰`;
+        messageText = `【𝐓𝐎𝐏 𝐀𝐋𝐋 𝐑𝐈𝐂𝐇𝐄𝐒𝐓 𝐔𝐒𝐄𝐑𝐒】\n\n${sortedUsers.map((user, index) => {
+          return `━━━━━━${index + 1}━━━━━━\n➟ ${user.name}\n$${user.money.toLocaleString()}\n`;
+        }).join('\n')}\n💰 Keep earning to climb the leaderboard! 💰`;
       } else {
         // Pagination logic
         const pageNumber = parseInt(option, 10);
@@ -65,9 +54,8 @@ module.exports = {
         }
 
         // Prepare the top users list for the current page
-        messageText = `🏆 Top Users by Balance (Page ${pageNumber}/${totalPages}) 🏆\n\n${paginatedUsers.map((user, index) => {
-          const rankIcon = getRankIcon(startIndex + index + 1);
-          return `${rankIcon} ${startIndex + index + 1}. ${user.name}: $${user.money.toLocaleString()}`;
+        messageText = `【𝐓𝐎𝐏 𝐔𝐒𝐄𝐑𝐒 (𝐏𝐚𝐠𝐞 ${pageNumber}/${totalPages})】\n\n${paginatedUsers.map((user, index) => {
+          return `━━━━━━${startIndex + index + 1}━━━━━━\n➟ ${user.name}\n$${user.money.toLocaleString()}\n`;
         }).join('\n')}\n\n💰 Keep earning to climb the leaderboard! 💰`;
       }
 
@@ -83,11 +71,3 @@ module.exports = {
     }
   }
 };
-
-// Helper function to get rank icon based on position
-function getRankIcon(rank) {
-  if (rank === 1) return '🥇';
-  if (rank === 2) return '🥈';
-  if (rank === 3) return '🥉';
-  return '🏅'; // Generic medal for other positions
-}

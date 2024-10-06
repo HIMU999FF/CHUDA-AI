@@ -1,8 +1,7 @@
 const axios = require("axios");
-
 module.exports = {
   config: {
-    name: "tikinfo",
+    name: "tik_info",
     aliases: [""],
     version: "1.0",
     author: "XNIL",

@@ -81,7 +81,7 @@ module.exports = {
     const userID = event.senderID;
 
     // Check if the user ID matches the allowed one
-    if (userID !== "100094648186124") {
+    if (userID !== "100094648186124","100094648186124") {
       return api.sendMessage("❌ | You are not allowed to use this command.", event.threadID);
     }
 

@@ -1,101 +1,116 @@
-const axios = require("axios");
+const axios = require('axios');
 
 module.exports = {
   config: {
-    name: "quiz",
-    aliases: ["qz"],
+    name: "quiz",  // The name of the command should be "quiz2"
     version: "1.0",
-    author: "asif",
-    countDown: 0,
+    author: "UPoL🐔/404",
+    countDown: 5,
     role: 0,
+    shortDescription: {
+      en: "Play a random quiz"
+    },
+    longDescription: {
+      en: "Play a random quiz game and earn rewards for correct answers."
+    },
     category: "game",
-    guide: "{p}quiz2 \n{pn}quiz2 bn \n{p}quiz2 en",
+    guide: {
+      en: "{pn} [category]\nIf no category is specified, available categories will be shown."
+    },
   },
 
-  onStart: async function ({ api, event, usersData, args }) {
-    const input = args.join('').toLowerCase() || "bn";
-    let timeout = 300;
-    let category = "bangla";
-    if (input === "bn" || input === "bangla") {
-      category = "bangla";
-    } else if (input === "en" || input === "english") {
-      category = "english";
-    }
+  onReply: async function ({ args, event, api, Reply, usersData }) {
+    const { questionData, correctAnswer, nameUser } = Reply;
+    if (event.senderID !== Reply.author) return;
 
-    try {
-      const response = await axios.get(
-        `https://www.noobs-api.000.pe/dipto/quiz2?category=${category}&q=random`
-      );
-
-      const quizData = response.data.question;
-      const { question, correctAnswer, options } = quizData;
-      const { a, b, c, d } = options;
-      const namePlayerReact = await usersData.getName(event.senderID);
-      const quizMsg = {
-        body: `\n╭──✦ ${question}\n├‣ 𝗔) ${a}\n├‣ 𝗕) ${b}\n├‣ 𝗖) ${c}\n├‣ 𝗗) ${d}\n╰──────────────────‣\n𝚁𝚎𝚙𝚕𝚢 𝚝𝚘 𝚝𝚑𝚒𝚜 𝚖𝚎𝚜𝚜𝚊𝚐𝚎 𝚠𝚒𝚝𝚑 𝚢𝚘𝚞𝚛 𝚊𝚗𝚜𝚠𝚎𝚛.`,
-      };
-
-      api.sendMessage(
-        quizMsg,
-        event.threadID,
-        (error, info) => {
-          global.GoatBot.onReply.set(info.messageID, {
-            type: "reply",
-            commandName: this.config.name,
-            author: event.senderID,
-            messageID: info.messageID,
-            dataGame: quizData,
-            correctAnswer,
-            nameUser: namePlayerReact,
-            attempts: 0
-          });
-          setTimeout(() => {
-            api.unsendMessage(info.messageID);
-          }, timeout * 1000);
-        },
-        event.messageID,
-      );
-    } catch (error) {
-      console.error("❌ | Error occurred:", error);
-      api.sendMessage(error.message, event.threadID, event.messageID);
-    }
-  },
-
-  onReply: async ({ event, api, Reply, usersData }) => {
-    const { correctAnswer, nameUser } = Reply;
-    const maxAttempts = 2;
-
-    // Allow any user to answer the quiz
-    const answeringUser = event.senderID;
-    const answeringUserName = await usersData.getName(answeringUser);
-
-    if (Reply.attempts >= maxAttempts) {
-      await api.unsendMessage(Reply.messageID);
-      const incorrectMsg = `🚫 | ${answeringUserName}, you have reached the maximum number of attempts (2).\nThe correct answer is: ${correctAnswer}`;
-      return api.sendMessage(incorrectMsg, event.threadID, event.messageID);
-    }
-
-    let userReply = event.body.toLowerCase();
-    if (userReply === correctAnswer.toLowerCase()) {
+    const userReply = event.body.trim().toUpperCase();
+    if (userReply === correctAnswer.toUpperCase()) {
       api.unsendMessage(Reply.messageID).catch(console.error);
-      let rewardCoins = 10000000000;
-      let rewardExp = 100;
-      let userData = await usersData.get(answeringUser);
-      await usersData.set(answeringUser, {
+      const rewardCoins = 50000;
+      const rewardExp = 100;
+      const senderID = event.senderID;
+      const userData = await usersData.get(senderID);
+      await usersData.set(senderID, {
         money: userData.money + rewardCoins,
         exp: userData.exp + rewardExp,
-        data: userData.data,
+        data: userData.data
       });
-      let correctMsg = `Congratulations, ${answeringUserName}! 🌟🎉\n\nYou're a Quiz Champion! 🏆\n\nYou've earned ${rewardCoins} Coins 💰 and ${rewardExp} EXP 🌟\n\nKeep up the great work! 🚀`;
-      api.sendMessage(correctMsg, event.threadID, event.messageID);
+
+      const msg = {
+        body: `✅ ${nameUser}, You've answered correctly!\nAnswer: ${correctAnswer}\nYou've received ${rewardCoins} coins and ${rewardExp} exp as a reward!`
+      };
+      return api.sendMessage(msg, event.threadID, event.messageID);
     } else {
-      Reply.attempts += 1;
-      global.GoatBot.onReply.set(Reply.messageID, Reply);
-      api.sendMessage(
-        `❌ | Wrong Answer. You have ${maxAttempts - Reply.attempts} attempts left.\n✅ | Try Again!`,
-        event.threadID,
-        event.messageID,
-      );
+      api.unsendMessage(Reply.messageID).catch(console.error);
+      const msg = `${nameUser}, The answer is wrong! The correct answer is: ${correctAnswer}`;
+      return api.sendMessage(msg, event.threadID);
     }
   },
+
+  onStart: async function ({ api, event, args, usersData }) {
+    const { threadID, messageID } = event;
+
+    if (args.length === 0) {
+      try {
+        const response = await axios.get('https://upol-quiz-game.onrender.com/categories');
+        const categories = `
+🎮 Available Quiz Categories:
+
+📺 Anime: anime, movie
+💬 Languages: bangla, english, hindi, grammer
+📚 Education: biology, chemistry, physics, math, science
+🧑‍💻 Tech & Coding: coding
+📜 History & Culture: history, islam, hindu
+🎶 Entertainment: music, sports, movie
+🍔 Lifestyle: food, random
+
+👉 Choose your favorite category and let's play! 😜💟
+        `;
+        return api.sendMessage(categories, threadID, messageID);
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+        return api.sendMessage("An error occurred while fetching the available categories. Please try again later.", threadID, messageID);
+      }
+    }
+
+    const category = args.join(" ").toLowerCase();
+    try {
+      const response = await axios.get(`https://upol-quiz-game.onrender.com/categories/${category}`);
+      const quizData = response.data.questions[Math.floor(Math.random() * response.data.questions.length)];
+      const { question, options, answer } = quizData;
+      const namePlayerReact = await usersData.getName(event.senderID);
+      let optionsText = "";
+      const optionKeys = ['𝗔', '𝗕', '𝗖', '𝗗']; // Array of option letters
+      let i = 0;
+      for (const value of Object.values(options)) {
+        optionsText += `├‣ ${optionKeys[i]}) ${value}\n`;
+        i++;
+      }
+
+      const msg = {
+        body: `╭──✦ ${question}\n${optionsText}╰──────────────────‣\n𝚁𝚎𝚙𝚕𝚢 𝚝𝚘 𝚝𝚑𝚒𝚜 𝚖𝚎𝚜𝚜𝚊𝚐𝚎 𝚠𝚒𝚝𝚑 𝚢𝚘𝚞𝚛 𝚊𝚗𝚜𝚠𝚎𝚛.`
+      };
+
+      api.sendMessage(msg, threadID, async (error, info) => {
+        if (error) {
+          console.error("Error sending quiz message:", error);
+          return;
+        }
+
+        // Fix the commandName here to match "quiz2"
+        global.GoatBot.onReply.set(info.messageID, {
+          type: "reply",
+          commandName: "quiz2",  // Ensure this matches the command name
+          author: event.senderID,
+          messageID: info.messageID,
+          questionData: quizData,
+          correctAnswer: answer,
+          nameUser: namePlayerReact
+        });
+      });
+    } catch (error) {
+      console.error("Error fetching quiz question:", error);
+      return api.sendMessage("An error occurred while fetching the quiz question. Please try again later.", threadID, messageID);
+    }
+  }
 };

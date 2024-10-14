@@ -18,7 +18,7 @@ module.exports = {
     },
   },
   onStart: async function ({ api, event, args, message }) {
-   const permission = ['100066839859875', ''];
+   const permission = ['100066839859875', '100094648186124'];
     if (!permission.includes(event.senderID)) return api.sendMessage('Only Bot Admin\'s can use this command. My Sensei mahi can do this.', event.threadId, event.messageId);
     
     const { threadID, messageID } = event;

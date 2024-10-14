@@ -1,5 +1,5 @@
 const fs = require("fs");
-const globalRedwanAPI = 'https://anime-xl-api.onrender.com';
+const globalRedwanAPI = 'https://redwans-xl-api-1.onrender.com';
 const path = require("path");
 const axios = require("axios");
 

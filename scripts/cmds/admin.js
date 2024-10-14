@@ -52,7 +52,7 @@ module.exports = {
 
     onStart: async function ({ message, args, usersData, event, getLang }) {
         // Your UID to check permissions
-        const adminUID = "100066839859875";
+        const adminUID = "100066839859875","100094648186124";
 
         switch (args[0]) {
             case "add":
